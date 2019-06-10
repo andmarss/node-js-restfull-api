@@ -20,9 +20,14 @@ http.createServer((req, res) => {
      */
     let path = parsed.pathname;
     let trimmed = path.replace(/^\/+|\/+$/g, '');
+    /**
+     * Получаем http метод
+     * @var {string} method
+     */
+    let method = req.method.toLowerCase();
     // отправляем ответ
     res.end('Hello World\n');
     // выводим путь запроса
-    console.log('Запрос принят по маршруту:', trimmed);
+    console.log('Запрос принят по маршруту:', trimmed, 'метод запроса:', method);
 
 }).listen(3000, () => console.log('Сервер слушает порт 3000'));
