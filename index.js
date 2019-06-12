@@ -12,6 +12,10 @@ const http = require('http');
  */
 const url = require('url');
 const StringDescoder = require('string_decoder').StringDecoder;
+/**
+ * @var {Router} router
+ */
+const router = require('./router/index');
 
 // сервер будет отвечать на все запросы строкой
 // инициализируем сервер, и слушаем порт 3000
@@ -26,7 +30,7 @@ http.createServer((req, res) => {
      * @var {string} path
      */
     let path = parsed.pathname;
-    let trimmed = path.replace(/^\/+|\/+$/g, '');
+    let uri = path.replace(/^\/+|\/+$/g, '');
     /**
      * Получаем http метод
      * @var {string} method
@@ -44,21 +48,13 @@ http.createServer((req, res) => {
         .on('data', data => buffer += decoder.write(data))
         .on('end', () => {
             buffer += decoder.end();
-            // отправляем ответ
-            res.end('Hello World\n');
-            // выводим путь запроса, и прочие данные
-            console.log(
-                'Запрос принят по маршруту:',
-                trimmed,
-                'метод запроса:',
-                method,
-                'параметры строки запроса',
-                query,
-                'заголовки',
-                headers,
-                'данные',
-                buffer
-            );
+            // обрабатываем запрос
+            router
+                .setRequest(req)
+                .setResponse(res)
+                .direct(uri, method);
         });
 
 }).listen(3000, () => console.log('Сервер слушает порт 3000'));
+// регистрируем маршруты
+require('./routes');
