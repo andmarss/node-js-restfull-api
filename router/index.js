@@ -1,5 +1,17 @@
 let instance = null;
 
+/**
+ * @class Router
+ *
+ * @method get
+ * @method post
+ * @method put
+ * @method delete
+ * @method setRequest
+ * @method setResponse
+ * @method setBuffer
+ * @method direct
+ */
 class Router {
     constructor(){
         this._getRoutes = {};
@@ -9,6 +21,7 @@ class Router {
         this._head = {};
         this._request = null;
         this._response = null;
+        this._buffer = '';
     }
 
     /**
@@ -84,6 +97,19 @@ class Router {
     setResponse(res){
         if(res) {
             this._response = res;
+        }
+
+        return this;
+    }
+
+    /**
+     * получаем данные, если есть
+     * @param buffer
+     * @return {Router}
+     */
+    setBuffer(buffer) {
+        if(buffer) {
+            this._buffer = buffer;
         }
 
         return this;
