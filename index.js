@@ -16,9 +16,13 @@ const StringDescoder = require('string_decoder').StringDecoder;
  * @var {Router} router
  */
 const router = require('./router/index');
+/**
+ * @type {{checks: number, port: number, envName: string, https: number, twilio: {from: string, accountSid: string, token: string}, hash: string}}
+ */
+const config = require('./config');
 
 // сервер будет отвечать на все запросы строкой
-// инициализируем сервер, и слушаем порт 3000
+// инициализируем сервер, и слушаем порт из конфига
 http.createServer((req, res) => {
     /**
      * получаем url и парсим его
@@ -55,6 +59,6 @@ http.createServer((req, res) => {
                 .direct(uri, method);
         });
 
-}).listen(3000, () => console.log('Сервер слушает порт 3000'));
+}).listen(config.port, () => console.log(`Сервер слушает порт ${config.port}`));
 // регистрируем маршруты
 require('./routes');
