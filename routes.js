@@ -10,3 +10,7 @@ router.get('/sample', (req, res) => {
 router.post('/foo/bar', () => {
     return 'fooooo';
 });
+
+router.get('/ping', (req, res) => {
+    return res.json({});
+});
