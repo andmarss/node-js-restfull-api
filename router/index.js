@@ -99,8 +99,13 @@ class Router {
         uri = uri.replace(/^\/+|\/+$/g, '');
 
         if(this[`_${method.toLowerCase()}Routes`] !== undefined && typeof this[`_${method.toLowerCase()}Routes`][uri] === 'function') {
-            this._response.writeHead(200);
-            return this._response.end(this[`_${method.toLowerCase()}Routes`][uri](this._request, this._response));
+            this._response.json = data => {
+                this._response.writeHead(200, {'Content-Type': 'application/json'});
+
+                return JSON.stringify(data);
+            };
+            this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
+            this._response.end(this[`_${method.toLowerCase()}Routes`][uri](this._request, this._response));
         } else {
             this._response.writeHead(404, {'Content-Type': 'text/plain; charset=UTF-8'});
             return this._response.end(JSON.stringify({}));
