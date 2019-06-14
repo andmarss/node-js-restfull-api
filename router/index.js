@@ -116,6 +116,14 @@ class Router {
     }
 
     /**
+     * @return {string}
+     */
+    getBuffer(){
+        return this._buffer && typeof this._buffer === 'string'
+            ? JSON.parse(this._buffer) : {};
+    }
+
+    /**
      * В качестве параметра принимает uri, и http метод
      * @param uri
      * @param method
@@ -130,8 +138,9 @@ class Router {
 
                 return JSON.stringify(data);
             };
+            this._request.data = this.getBuffer();
             this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
-            this._response.end(this[`_${method.toLowerCase()}Routes`][uri](this._request, this._response));
+            this[`_${method.toLowerCase()}Routes`][uri](this._request, this._response);
         } else {
             this._response.writeHead(404, {'Content-Type': 'text/plain; charset=UTF-8'});
             return this._response.end(JSON.stringify({}));
