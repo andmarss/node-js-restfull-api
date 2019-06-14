@@ -154,7 +154,7 @@ class Router {
     /**
      * Подготовка объектов запроса и ответа
      */
-    prepare(){
+    _prepare(){
         this._response.json = data => {
             this._response.writeHead(200, {'Content-Type': 'application/json'});
 
@@ -177,7 +177,7 @@ class Router {
         uri = uri.replace(/^\/+|\/+$/g, '');
         let pattern = this.uriGetPattern(uri, method);
         // подготавливаем объекты запроса и ответа
-        this.prepare();
+        this._prepare();
 
         let callback = this._routes[method.toLowerCase()]._patterns[pattern];
 
@@ -191,7 +191,7 @@ class Router {
         if(callback !== undefined && typeof callback === 'function') {
             callback(this._request, this._response);
         } else {
-            this._response.writeHead(404, {'Content-Type': 'text/plain; charset=UTF-8'});
+            this._response.writeHead(405, {'Content-Type': 'text/plain; charset=UTF-8'});
             return this._response.end(JSON.stringify({}));
         }
     }
