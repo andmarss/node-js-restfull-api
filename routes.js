@@ -28,3 +28,11 @@ router.post('/create', (req, res) => {
             res.end(err.toString());
         });
 });
+
+router.get('/find/{id}', (req, res, id) => {
+    User.find(id)
+        .then(user => {
+            res.end(res.json(user.data()));
+        })
+        .catch(err => res.end(err.toString()));
+});

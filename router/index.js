@@ -14,11 +14,23 @@ let instance = null;
  */
 class Router {
     constructor(){
-        this._getRoutes = {};
-        this._postRoutes = {};
-        this._putRoutes = {};
-        this._deleteRoutes = {};
-        this._head = {};
+        this._routes = {
+            get: {
+                _patterns: {}
+            },
+
+            post: {
+                _patterns: {}
+            },
+
+            put: {
+                _patterns: {}
+            },
+
+            delete: {
+                _patterns: {}
+            }
+        };
         this._request = null;
         this._response = null;
         this._buffer = '';
@@ -33,7 +45,11 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
-            this._getRoutes[route] = callback;
+            if(Router.routeIsPattern(route)) {
+                this._routes.get._patterns[route] = callback;
+            } else {
+                this._routes.get[route] = callback;
+            }
         }
     }
 
@@ -46,7 +62,11 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
-            this._postRoutes[route] = callback;
+            if(Router.routeIsPattern(route)) {
+                this._routes.post._patterns[route] = callback;
+            } else {
+                this._routes.post[route] = callback;
+            }
         }
     }
 
@@ -59,7 +79,11 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
-            this._putRoutes[route] = callback;
+            if(Router.routeIsPattern(route)) {
+                this._routes.put._patterns[route] = callback;
+            } else {
+                this._routes.put[route] = callback;
+            }
         }
     }
 
@@ -72,7 +96,11 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
-            this._deleteRoutes[route] = callback;
+            if(Router.routeIsPattern(route)) {
+                this._routes.delete._patterns[route] = callback;
+            } else {
+                this._routes.delete[route] = callback;
+            }
         }
     }
 
@@ -124,27 +152,148 @@ class Router {
     }
 
     /**
+     * Подготовка объектов запроса и ответа
+     */
+    prepare(){
+        this._response.json = data => {
+            this._response.writeHead(200, {'Content-Type': 'application/json'});
+
+            return JSON.stringify(data);
+        };
+
+        this._request.data = this.getBuffer();
+
+        this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
+    }
+
+    /**
      * В качестве параметра принимает uri, и http метод
+     * Обрабатывает запрос
      * @param uri
      * @param method
      * @return {Router|*}
      */
     direct(uri, method){
         uri = uri.replace(/^\/+|\/+$/g, '');
+        let pattern = this.uriGetPattern(uri, method);
+        // подготавливаем объекты запроса и ответа
+        this.prepare();
 
-        if(this[`_${method.toLowerCase()}Routes`] !== undefined && typeof this[`_${method.toLowerCase()}Routes`][uri] === 'function') {
-            this._response.json = data => {
-                this._response.writeHead(200, {'Content-Type': 'application/json'});
+        let callback = this._routes[method.toLowerCase()]._patterns[pattern];
 
-                return JSON.stringify(data);
-            };
-            this._request.data = this.getBuffer();
-            this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
-            this[`_${method.toLowerCase()}Routes`][uri](this._request, this._response);
+        if(pattern && callback !== undefined && typeof callback === "function") {
+            this._request.params = Router.getParams(pattern, uri);
+            return callback(this._request, this._response, ...Router.getParamsValues(pattern, uri));
+        }
+
+        callback = this._routes[method.toLowerCase()][uri];
+
+        if(callback !== undefined && typeof callback === 'function') {
+            callback(this._request, this._response);
         } else {
             this._response.writeHead(404, {'Content-Type': 'text/plain; charset=UTF-8'});
             return this._response.end(JSON.stringify({}));
         }
+    }
+
+    /**
+     * Проверяет, является ли переданный маршрут паттерном
+     * @param route
+     * @return {boolean}
+     */
+    static routeIsPattern(route){
+        if(route && typeof route === 'string') {
+            return !!route.toLowerCase().match(/\{([^\{|\}]+)\}/g);
+        }
+
+        return false;
+    }
+
+    /**
+     * Получить объект параметров из динамического маршрута
+     * @param route
+     * @param uri
+     * @return {object}
+     */
+    static getParams(route, uri) {
+        let params = {};
+
+        if(route && typeof route === 'string' && uri && typeof uri === 'string') {
+            let keys = Router.getParamsKeys(route);
+            let values = Router.getParamsValues(route, uri);
+
+            keys.forEach((key, index) => {
+                params[key] = values[index];
+            });
+
+            return params;
+        }
+
+        return params;
+    }
+
+    /**
+     * Получить имена параметров из паттерна
+     * @param route
+     * @return {string[]|Array}
+     */
+    static getParamsKeys(route){
+        if(route && typeof route === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+
+            // разбиваем маршрут, например, /users/find/{id}/another/{user_id} так
+            // что бы получить {id} и {user_id}
+            // перебираем массив, и убираем фигурные скобки
+            // в результате получаем ['id', 'user_id']
+            return route.match(/\{([^}]+)\}/g).map(pattern => pattern.match(/\{([^}]+)\}/)[1]);
+        }
+
+        return [];
+    }
+
+    /**
+     * Получить значение параметров из паттерна
+     * @param route
+     * @param uri
+     * @return {string[]|Array}
+     */
+    static getParamsValues(route, uri) {
+        if(route && typeof route === 'string' && uri && typeof uri === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+            uri = uri.replace(/^\/+|\/+$/g, '');
+            // заменяем фигурные скобки на квадратные
+            // для регулярного выражения
+            // экранируем косые черты
+            let pattern = route
+                .replace(/\{[^\{\}]+\}/g, '([^\/]+)')
+                .replace(/\/+/g, '\\/');
+
+            let regexp = new RegExp(pattern, 'g');
+
+            let result = regexp.exec(uri);
+
+            return result ? result.slice(1) : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Получить паттерн по ссылке, если есть
+     * @param uri
+     * @param method
+     * @return {boolean|string}
+     */
+    uriGetPattern(uri, method) {
+        let patterns = this._routes[method.toLowerCase()]._patterns;
+
+        if(Object.keys(patterns).length > 0) {
+            return Object.keys(patterns).find(pattern => {
+                return Router.getParamsValues(pattern, uri).length > 0
+            });
+        }
+
+        return false;
     }
 
     /**
