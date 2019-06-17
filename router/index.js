@@ -1,5 +1,7 @@
 let instance = null;
 
+let Template = require('../app/template');
+
 /**
  * @class Router
  *
@@ -161,6 +163,26 @@ class Router {
             return JSON.stringify(data);
         };
 
+        this._response.send404 = data => {
+            this._response.writeHead(404, {'Content-Type': 'text/plain; charset=UTF-8'});
+
+            return data ? data : 'Not Found';
+        };
+
+        this._response.send405 = data => {
+            this._response.writeHead(405, {'Content-Type': 'text/plain; charset=UTF-8'});
+
+            return data ? data : 'Method Not Allowed';
+        };
+
+        this._response.view = (path, data = {}) => {
+            this._response.writeHead(200, {'Content-Type': 'text/html; charset=UTF-8'});
+
+            Template.render(path, data).then(html => {
+                this._response.end(html);
+            }).catch(err => this._response.end(err.toString()));
+        };
+
         this._request.data = this.getBuffer();
 
         this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
@@ -175,6 +197,7 @@ class Router {
      */
     direct(uri, method){
         uri = uri.replace(/^\/+|\/+$/g, '');
+        // проверяем, есть ли у данного uri паттерн для динамической обработки запросов
         let pattern = this.uriGetPattern(uri, method);
         // подготавливаем объекты запроса и ответа
         this._prepare();
@@ -191,8 +214,7 @@ class Router {
         if(callback !== undefined && typeof callback === 'function') {
             callback(this._request, this._response);
         } else {
-            this._response.writeHead(405, {'Content-Type': 'text/plain; charset=UTF-8'});
-            return this._response.end(JSON.stringify({}));
+            return this._response.end(this._response.send405());
         }
     }
 

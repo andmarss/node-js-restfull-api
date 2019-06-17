@@ -1,0 +1,13 @@
+<% extend 'template/index' %>
+
+<% block 'body' %>
+    <% users.forEach(user => { %>
+        <p><%=user.id%>. <%=user.name%></p>
+    <% }); %>
+<% endblock %>
+
+<% block 'scripts' %>
+    <script>
+        alert(1);
+    </script>
+<% endblock %>

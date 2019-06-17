@@ -21,6 +21,29 @@ class User extends Model {
         this._name = User._name;
     }
 
+    static all(){
+        if(!User._name) throw new Error('Необходимо указать имя файла');
+
+        let name = User._name.trim().match(/\.json$/g) ? User._name : `${User._name}.json`;
+
+        return new Promise((res, rej) => {
+            fs.readFile(`${User._path}/${name}`, {encoding: 'utf-8', flag: 'a+'}, (err, data) => {
+                if(err) rej(err);
+
+                data = data ? JSON.parse(data) : '';
+
+                if(!data || !data.length) {
+                    rej('Список пользователей пуст');
+                    return;
+                }
+
+                let users = data.map(user => new User(user));
+
+                res(users);
+            });
+        });
+    }
+
     static find(id = null){
         if(!id) throw new Error('Необходимо передать идентификатор, по которому будет производится поиск.');
 
