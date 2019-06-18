@@ -29,16 +29,6 @@ router.post('/user/create', (req, res) => {
         });
 });
 
-router.get('/user/find/{id}', (req, res, id) => {
-    User.find(id)
-        .then(user => {
-            res.end(res.json(user.data()));
-        })
-        .catch(err => res.end(err.toString()));
-});
+router.get('/user/find/{id}', 'UsersController@find');
 
-router.get('/users/all', (req, res) => {
-    User.all().then(users => {
-        res.view('index', {users});
-    }).catch(err => res.end(err.toString()));
-});
+router.get('/users/all', 'UsersController@all');

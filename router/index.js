@@ -1,3 +1,5 @@
+const path = require('path');
+
 let instance = null;
 
 let Template = require('../app/template');
@@ -52,6 +54,22 @@ class Router {
             } else {
                 this._routes.get[route] = callback;
             }
+        } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+
+            let [controller, action] = callback.split('@');
+
+            controller = path.join(__dirname, `../app/controllers/${controller}.js`);
+            controller = require(controller);
+            callback = (new controller)[action];
+
+            if (typeof callback === 'function') {
+                if (Router.routeIsPattern(route)) {
+                    this._routes.get._patterns[route] = callback;
+                } else {
+                    this._routes.get[route] = callback;
+                }
+            }
         }
     }
 
@@ -68,6 +86,22 @@ class Router {
                 this._routes.post._patterns[route] = callback;
             } else {
                 this._routes.post[route] = callback;
+            }
+        } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+
+            let [controller, action] = callback.split('@');
+
+            controller = path.join(__dirname, `../app/controllers/${controller}.js`);
+            controller = require(controller);
+            callback = (new controller)[action];
+
+            if (typeof callback === 'function') {
+                if(Router.routeIsPattern(route)) {
+                    this._routes.post._patterns[route] = callback;
+                } else {
+                    this._routes.post[route] = callback;
+                }
             }
         }
     }
@@ -86,6 +120,22 @@ class Router {
             } else {
                 this._routes.put[route] = callback;
             }
+        } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+
+            let [controller, action] = callback.split('@');
+
+            controller = path.join(__dirname, `../app/controllers/${controller}.js`);
+            controller = require(controller);
+            callback = (new controller)[action];
+
+            if (typeof callback === 'function') {
+                if(Router.routeIsPattern(route)) {
+                    this._routes.put._patterns[route] = callback;
+                } else {
+                    this._routes.put[route] = callback;
+                }
+            }
         }
     }
 
@@ -102,6 +152,22 @@ class Router {
                 this._routes.delete._patterns[route] = callback;
             } else {
                 this._routes.delete[route] = callback;
+            }
+        } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
+            route = route.replace(/^\/+|\/+$/g, '');
+
+            let [controller, action] = callback.split('@');
+
+            controller = path.join(__dirname, `../app/controllers/${controller}.js`);
+            controller = require(controller);
+            callback = (new controller)[action];
+
+            if (typeof callback === 'function') {
+                if(Router.routeIsPattern(route)) {
+                    this._routes.delete._patterns[route] = callback;
+                } else {
+                    this._routes.delete[route] = callback;
+                }
             }
         }
     }
