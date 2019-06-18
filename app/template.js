@@ -104,15 +104,15 @@ class Template {
     static _compileTemplate(template, depend) {
         // сменяем yield 'name_of_block' на block_name_of_block
         template = template.replace(/<%\s*yield\s*[\"|\'](.*?)[\'|\"]\s*%>/g, 'block_$1');
-        // получаем имена этих блоков
-        let blocks = template
-            .match(/block_[a-z0-9]+/g);
         // сменяем block 'name_of_block' на block_name_of_block
         // убираем endblock
         // убираем extend
         let compiledDepend = depend.replace(/<%\s*block\s*[\"|\'](.*?)[\"|\']\s*%>/g, 'block_$1');
         compiledDepend = compiledDepend.replace(/<%\s*extend(.*?)\s*%>/, '');
         compiledDepend = compiledDepend.trim();
+        // получаем имена этих блоков
+        let blocks = compiledDepend
+            .match(/block_[a-z0-9]+/ig);
 
         let endBlocks = compiledDepend.match(/<%\s*endblock\s*%>/g);
         // если количество закрывающих конструкций для блоков не равно количеству открывающих
@@ -159,10 +159,11 @@ class Template {
 
             if(template.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g)) {
                 template = Template._parseIncludes(template);
-
-                resolve(template);
+                // убираем имена блоков, которые не подставляются
+                resolve(template.replace(/block_[a-z0-9]+/ig, ''));
             } else {
-                resolve(template);
+                // убираем имена блоков, которые не подставляются
+                resolve(template.replace(/block_[a-z0-9]+/ig, ''));
             }
 
         });
