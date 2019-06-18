@@ -85,6 +85,9 @@ class Template {
                 .split("<%").join("\t")
                 .replace(/((^|%>)[^\t]*)'/g, "$1\r")
                 .replace(/\t=(.*?)%>/g, "',$1,'")
+                .replace(/([\"|\'])/g, match => {
+                    return '\\' + match;
+                })
                 .split("\t").join("');")
                 .split("%>").join("p.push('")
                 .split("\r").join("\\'")}');
