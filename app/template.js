@@ -25,7 +25,7 @@ class Template {
                     reject(err);
                     return;
                 }
-
+                // если файл наследуется
                 if(fileData.search(/<%\s*extend/) === 0) {
                     let parentFilePath = /<%\s*extend\s*[\"|\'](.*?)[\"|\']\s*%>/.exec(fileData)[1].trim();
 
@@ -45,7 +45,17 @@ class Template {
                             })
                             .catch(err => reject(err));
                     })
-                } else {
+                } else { // если файл не наследуется, то у него не должно быть конструкций extend, block и т.д.
+                    fileData = fileData.replace(/<%\s*yield\s*[\"|\'](.*?)[\'|\"]\s*%>/g, '')
+                        .replace(/<%\s*block\s*[\"|\'](.*?)[\"|\']\s*%>/g, '')
+                        .replace(/<%\s*endblock\s*%>/g, '')
+                        .replace(/<%\s*extend(.*?)\s*%>/, '');
+                    // если есть включаемые вложения
+                    // включаем их
+                    if(fileData.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g)) {
+                        fileData = Template._parseIncludes(fileData);
+                    }
+
                     let fn = Template._createFunction(fileData);
 
                     resolve(fn(data));
