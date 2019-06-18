@@ -85,7 +85,12 @@ class Template {
                 .split("<%").join("\t")
                 .replace(/((^|%>)[^\t]*)'/g, "$1\r")
                 .replace(/\t=(.*?)%>/g, "',$1,'")
-                .replace(/\<\s*script[^\>]*\>[\r\t\n\s]+([^\<]+)\<\/\s*script\s*\>/, match => {
+                .replace(/\<\s*script[^\>]*\>[\r\t\n\s]+([^\<]+)\<\/\s*script\s*\>/g, match => {
+                    return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
+                        return '\\' + m;
+                    }) : match
+                })
+                .replace(/\<\s*style[^\>]*\>[\r\t\n\s]+([^\<]+)<\/\s*style\s*\>/g, match => {
                     return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
                         return '\\' + m;
                     }) : match
