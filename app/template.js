@@ -118,8 +118,10 @@ class Template {
         // если количество закрывающих конструкций для блоков не равно количеству открывающих
         // выбрасываем ошибку
         // закрывающие конструкции можно опустить, но сделать это придется для всех блоков
-        if(endBlocks && endBlocks.length > 0 && endBlocks.length !== blocks.length) {
+        if(endBlocks && endBlocks.length > 0 && endBlocks.length < blocks.length) {
             throw new Error(`Количество открывающих и закрывающих конструкций для блоков должно быть одинаково.`);
+        } else if (endBlocks && endBlocks.length > 0 && endBlocks.length > blocks.length) { // дублирующиеся блоки
+            throw new Error(`Дублирование блоков недоступно.`);
         }
 
         blocks.forEach((name, index) => {
