@@ -2,8 +2,6 @@ const fs = require('fs');
 
 const path = require('path');
 
-const cache = {};
-
 class Template {
     /**
      * @param filepath
@@ -13,10 +11,6 @@ class Template {
      */
     static render(filepath, data = {}) {
         filepath = Template._getPath(filepath);
-
-        let keys = Object.keys(data);
-
-        ({...keys} = data);
 
         return new Promise((resolve, reject) => {
 
@@ -53,12 +47,28 @@ class Template {
                     // если есть включаемые вложения
                     // включаем их
                     if(fileData.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g)) {
-                        fileData = Template._parseIncludes(fileData);
+                        Template._parseIncludes(fileData).then(chunks => {
+                            // получаем список вложений
+                            let includes = fileData.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g);
+
+                            includes.forEach((include, index) => {
+                                // наименование вложения, заключенное в ковычках
+                                include = include.replace(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/, '$1');
+                                let chunk = chunks[index];
+                                let regexp = new RegExp(`<%\\s*include\\s*[\\"|\\']${include}[\\"|\\']\\s*%>`);
+                                // заменяем вложение на значение файла
+                                fileData = fileData.replace(regexp, chunk);
+                            });
+
+                            let fn = Template._createFunction(fileData);
+
+                            resolve(fn(data));
+                        });
+                    } else {
+                        let fn = Template._createFunction(fileData);
+
+                        resolve(fn(data));
                     }
-
-                    let fn = Template._createFunction(fileData);
-
-                    resolve(fn(data));
                 }
             });
         });
@@ -79,26 +89,30 @@ class Template {
     }
 
     static _createFunction(string) {
-        return new Function('obj',
-            `let p = [], print = () => p.push.apply(p, arguments);
+        try {
+            return new Function('obj',
+                `let p = [], print = () => p.push.apply(p, arguments);
                     with(obj){p.push('${string.replace(/[\r\t\n]/g, " ")
-                .split("<%").join("\t")
-                .replace(/((^|%>)[^\t]*)'/g, "$1\r")
-                .replace(/\t=(.*?)%>/g, "',$1,'")
-                .replace(/\<\s*script[^\>]*\>[\r\t\n\s]+([^\<]+)\<\/\s*script\s*\>/g, match => {
-                    return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
-                        return '\\' + m;
-                    }) : match
-                })
-                .replace(/\<\s*style[^\>]*\>[\r\t\n\s]+([^\<]+)<\/\s*style\s*\>/g, match => {
-                    return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
-                        return '\\' + m;
-                    }) : match
-                })
-                .split("\t").join("');")
-                .split("%>").join("p.push('")
-                .split("\r").join("\\'")}');
+                    .split("<%").join("\t")
+                    .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+                    .replace(/\t=(.*?)%>/g, "',$1,'")
+                    .replace(/\<\s*script[^\>]*\>[\r\t\n\s]+([^\<]+)\<\/\s*script\s*\>/g, match => {
+                        return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
+                            return '\\' + m;
+                        }) : match
+                    })
+                    .replace(/\<\s*style[^\>]*\>[\r\t\n\s]+([^\<]+)<\/\s*style\s*\>/g, match => {
+                        return match.match(/([\"|\'])/g) ? match.replace(/([\"|\'])/g, m => {
+                            return '\\' + m;
+                        }) : match
+                    })
+                    .split("\t").join("');")
+                    .split("%>").join("p.push('")
+                    .split("\r").join("\\'")}');
                     }; return p.join('');`);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     static _compileTemplate(template, depend) {
@@ -158,9 +172,24 @@ class Template {
         return new Promise((resolve, reject) => {
 
             if(template.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g)) {
-                template = Template._parseIncludes(template);
-                // убираем имена блоков, которые не подставляются
-                resolve(template.replace(/block_[a-z0-9]+/ig, ''));
+                // парсим вложения, получаем массив значений этих файлов
+                Template._parseIncludes(template).then(chunks => {
+                    // получаем список вложений
+                    let includes = template.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g);
+
+                    includes.forEach((include, index) => {
+                        // наименование вложения, заключенное в ковычках
+                        include = include.replace(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/, '$1');
+                        let chunk = chunks[index];
+                        let regexp = new RegExp(`<%\\s*include\\s*[\\"|\\']${include}[\\"|\\']\\s*%>`);
+                        // заменяем вложение на значение файла
+                        template = template.replace(regexp, chunk);
+                    });
+
+                    // убираем имена блоков, которые не подставляются
+                    resolve(template.replace(/block_[a-z0-9]+/ig, ''));
+
+                }).catch(err => reject(err));
             } else {
                 // убираем имена блоков, которые не подставляются
                 resolve(template.replace(/block_[a-z0-9]+/ig, ''));
@@ -172,33 +201,42 @@ class Template {
     /**
      * Получает все вложения, и возвращает массив значений всех вложений
      * @param template
-     * @return {string}
+     * @return {Promise<any[]>}
      * @private
      */
     static _parseIncludes(template){
         let includes = template.match(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/g);
+        let promises = [];
 
         includes.forEach(include => {
             include = include.replace(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/, '$1');
             let includePath = Template._getPath(include);
 
-            let includeData = fs.readFileSync(includePath, 'utf-8');
+            promises.push(
+                new Promise((resolve, reject) => {
+                    fs.readFile(includePath, 'utf-8', (err, includeData) => {
+                        if(err) {
+                            reject(err);
+                            return;
+                        }
 
-            let regexp = new RegExp(`<%\\s*include\\s*[\\"|\\']${include}[\\"|\\']\\s*%>`);
+                        // у вложений не должно быть конструкций include, extend, block и пр.
+                        // поэтому убираем их
+                        includeData = includeData
+                            .replace(/<%\s*yield\s*[\"|\'](.*?)[\'|\"]\s*%>/g, '')
+                            .replace(/<%\s*block\s*[\"|\'](.*?)[\"|\']\s*%>/g, '')
+                            .replace(/<%\s*endblock\s*%>/g, '')
+                            .replace(/<%\s*extend(.*?)\s*%>/, '')
+                            .replace(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/, '')
+                            .trim();
 
-            // у вложений не должно быть конструкций include, extend, block и пр.
-            // поэтому убираем их
-            includeData = includeData
-                .replace(/<%\s*yield\s*[\"|\'](.*?)[\'|\"]\s*%>/g, '')
-                .replace(/<%\s*block\s*[\"|\'](.*?)[\"|\']\s*%>/g, '')
-                .replace(/<%\s*endblock\s*%>/g, '')
-                .replace(/<%\s*extend(.*?)\s*%>/, '')
-                .replace(/<%\s*include\s*[\"|\'](.*?)[\"|\']\s*%>/, '');
-
-            template = template.replace(regexp, includeData);
+                        resolve(includeData);
+                    });
+                })
+            );
         });
 
-        return template;
+        return Promise.all(promises);
     }
 }
 
