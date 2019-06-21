@@ -32,3 +32,11 @@ router.post('/user/create', (req, res) => {
 router.get('/user/find/{id}', 'UsersController@find');
 
 router.get('/users/all', 'UsersController@all');
+
+router.get('/public/{path}', (req, res) => {
+    res.loadAsset(req.params.path);
+}).where({path: '.*'});
+
+router.get('/favicon.ico', (req, res) => {
+    res.loadAsset('favicon.ico');
+});

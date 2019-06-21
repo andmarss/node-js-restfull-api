@@ -1,4 +1,5 @@
 const path = require('path');
+const { asset } = require('../helpers/index');
 
 let instance = null;
 
@@ -38,6 +39,8 @@ class Router {
         this._request = null;
         this._response = null;
         this._buffer = '';
+        this._where = {};
+        this._route = '';
     }
 
     /**
@@ -49,6 +52,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            this._route = route;
+
             if(Router.routeIsPattern(route)) {
                 this._routes.get._patterns[route] = callback;
             } else {
@@ -56,6 +61,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            this._route = route;
 
             let [controller, action] = callback.split('@');
 
@@ -71,6 +78,8 @@ class Router {
                 }
             }
         }
+
+        return this;
     }
 
     /**
@@ -82,6 +91,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            this._route = route;
+
             if(Router.routeIsPattern(route)) {
                 this._routes.post._patterns[route] = callback;
             } else {
@@ -89,6 +100,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            this._route = route;
 
             let [controller, action] = callback.split('@');
 
@@ -104,6 +117,8 @@ class Router {
                 }
             }
         }
+
+        return this;
     }
 
     /**
@@ -115,6 +130,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            this._route = route;
+
             if(Router.routeIsPattern(route)) {
                 this._routes.put._patterns[route] = callback;
             } else {
@@ -122,6 +139,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            this._route = route;
 
             let [controller, action] = callback.split('@');
 
@@ -137,6 +156,8 @@ class Router {
                 }
             }
         }
+
+        return this;
     }
 
     /**
@@ -148,6 +169,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            this._route = route;
+
             if(Router.routeIsPattern(route)) {
                 this._routes.delete._patterns[route] = callback;
             } else {
@@ -155,6 +178,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            this._route = route;
 
             let [controller, action] = callback.split('@');
 
@@ -170,6 +195,8 @@ class Router {
                 }
             }
         }
+
+        return this;
     }
 
     /**
@@ -249,6 +276,20 @@ class Router {
             }).catch(err => this._response.end(err.toString()));
         };
 
+        this._response.loadAsset = path => {
+            this.prepareHeader(path);
+
+            asset(path)
+                .then(data => {
+                    this._response.end(data);
+                })
+                .catch(err => {
+                    this._response.writeHead(405, {'Content-Type': 'text/plain; charset=UTF-8'});
+
+                    this._response.end(err.toString());
+                });
+        };
+
         this._request.data = this.getBuffer();
 
         this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
@@ -271,8 +312,8 @@ class Router {
         let callback = this._routes[method.toLowerCase()]._patterns[pattern];
 
         if(pattern && callback !== undefined && typeof callback === "function") {
-            this._request.params = Router.getParams(pattern, uri);
-            return callback(this._request, this._response, ...Router.getParamsValues(pattern, uri));
+            this._request.params = this.getParams(pattern, uri);
+            return callback(this._request, this._response, ...Object.values(this._request.params));
         }
 
         callback = this._routes[method.toLowerCase()][uri];
@@ -303,12 +344,12 @@ class Router {
      * @param uri
      * @return {object}
      */
-    static getParams(route, uri) {
+    getParams(route, uri) {
         let params = {};
 
         if(route && typeof route === 'string' && uri && typeof uri === 'string') {
-            let keys = Router.getParamsKeys(route);
-            let values = Router.getParamsValues(route, uri);
+            let keys = this.getParamsKeys(route);
+            let values = this.getParamsValues(route, uri);
 
             keys.forEach((key, index) => {
                 params[key] = values[index];
@@ -325,7 +366,7 @@ class Router {
      * @param route
      * @return {string[]|Array}
      */
-    static getParamsKeys(route){
+    getParamsKeys(route){
         if(route && typeof route === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
 
@@ -345,16 +386,41 @@ class Router {
      * @param uri
      * @return {string[]|Array}
      */
-    static getParamsValues(route, uri) {
+    getParamsValues(route, uri) {
         if(route && typeof route === 'string' && uri && typeof uri === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
             uri = uri.replace(/^\/+|\/+$/g, '');
-            // заменяем фигурные скобки на квадратные
-            // для регулярного выражения
-            // экранируем косые черты
-            let pattern = route
-                .replace(/\{[^\{\}]+\}/g, '([^\/]+)')
-                .replace(/\/+/g, '\\/');
+            let where = this._where[route];
+            let pattern;
+
+            if(where && Object.keys(where).length > 0) {
+                Object.keys(where).forEach(param => {
+                    let wherePattern = where[param];
+
+                    let regexp = new RegExp(`\{\[${param}\]+\}`);
+
+                    if(route.match(regexp)) {
+                        route = route
+                            .replace(regexp, `(${wherePattern})`)
+                    }
+                });
+                // экранируем косые черты
+                route = route.replace(/\/+/g, '\\/');
+                // если еще остались фигурные скобки
+                // меняем их на паттерн по умолчанию
+                if(route.search(/\{[^\{\}]+\}/g)) {
+                    route = route
+                        .replace(/\{[^\{\}]+\}/g, '([^\/]+)');
+                }
+                pattern = route;
+            } else {
+                // заменяем фигурные скобки на квадратные
+                // для регулярного выражения
+                // экранируем косые черты
+                pattern = route
+                    .replace(/\{[^\{\}]+\}/g, '([^\/]+)')
+                    .replace(/\/+/g, '\\/');
+            }
 
             let regexp = new RegExp(pattern, 'g');
 
@@ -377,11 +443,49 @@ class Router {
 
         if(Object.keys(patterns).length > 0) {
             return Object.keys(patterns).find(pattern => {
-                return Router.getParamsValues(pattern, uri).length > 0
+                return this.getParamsValues(pattern, uri).length > 0
             });
         }
 
         return false;
+    }
+
+    /**
+     * Применить к маршруту с динамическими параметрами
+     * условие в виде регулярного выражения
+     * @param condition
+     * @return {Router}
+     */
+    where(condition) {
+        if(Object.keys(condition).length > 0) {
+            this._where[this._route] = {};
+
+            Object.keys(condition).forEach(param => {
+                this._where[this._route][param] = condition[param];
+            });
+        }
+
+        return this;
+    }
+    /**
+     * Подготовить заголовок к типу передаваемого контента
+     *
+     * @param path
+     */
+    prepareHeader(path){
+        if(path.search(/\.jpg$/) !== -1 || path.search(/\.jpeg$/) !== -1) {
+            this._response.writeHead(200, {'Content-Type': 'image/jpeg'});
+        } else if(path.search(/\.png$/) !== -1) {
+            this._response.writeHead(200, {'Content-Type': 'image/png'});
+        } else if (path.search(/\.css$/) !== -1) {
+            this._response.writeHead(200, {'Content-Type': 'text/css'});
+        } else if (path.search(/\.js$/) !== -1) {
+            this._response.writeHead(200, {'Content-Type': 'text/js'});
+        } else if (path.search(/\.ico$/) !== -1) {
+            this._response.writeHead(200, {'Content-Type': 'image/x-icon'});
+        } else {
+            this._response.writeHead(200, {'Content-Type': 'text/plain'});
+        }
     }
 
     /**

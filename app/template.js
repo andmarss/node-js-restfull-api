@@ -12,6 +12,10 @@ class Template {
     static render(filepath, data = {}) {
         filepath = Template._getPath(filepath);
 
+        data.asset = path => {
+            return `public/${path}`
+        };
+
         return new Promise((resolve, reject) => {
 
             fs.readFile(filepath, 'utf-8', (err, fileData) => {
