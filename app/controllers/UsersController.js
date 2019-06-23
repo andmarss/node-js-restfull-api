@@ -8,7 +8,7 @@ class UsersController {
     }
 
     find(request, response, id) {
-        User.find(request.params.id)
+        User.find(id)
             .then(user => {
                 response.end(response.json(user.data()));
             })

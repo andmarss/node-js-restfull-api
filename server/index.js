@@ -19,6 +19,10 @@ const https = require('https');
  * @type {module:url}
  */
 const url = require('url');
+/**
+ * @type {Session}
+ */
+const Session = require('../app/session/index');
 
 const StringDecoder = require('string_decoder').StringDecoder;
 /**
@@ -74,18 +78,31 @@ class Server {
         // получаем данные, если есть
         let decoder = new StringDecoder('utf-8');
         let buffer = '';
+        // запускаем сессию
+        Session.start(req, res).then(session => {
+            if(!req.session) {
+                req.session = session;
+            }
 
-        req
-            .on('data', data => buffer += decoder.write(data))
-            .on('end', () => {
-                buffer += decoder.end();
-                // обрабатываем запрос
-                router
-                    .setRequest(req)
-                    .setResponse(res)
-                    .setBuffer(buffer)
-                    .direct(uri, method);
+            req
+                .on('data', data => buffer += decoder.write(data))
+                .on('end', () => {
+                    buffer += decoder.end();
+                    // обрабатываем запрос
+                    router
+                        .setRequest(req)
+                        .setResponse(res)
+                        .setBuffer(buffer)
+                        .direct(uri, method);
+                });
+            // когда выполняется ответ на запрос - обновляем сессию
+            // подгружая все изменения
+            res.on('finish', () => {
+                req.session.update().then(session => {
+                    req.session = session;
+                })
             });
+        });
     }
 
     /**
