@@ -20,3 +20,5 @@ router.get('/register', 'AuthController@registerIndex').name('register-index');
 router.get('/login', 'AuthController@loginIndex').name('login-index');
 
 router.post('/register', 'AuthController@register').name('register');
+
+router.post('/login', 'AuthController@login').name('login');

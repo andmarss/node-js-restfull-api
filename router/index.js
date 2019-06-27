@@ -244,27 +244,6 @@ class Router {
     }
 
     /**
-     * получаем данные, если есть
-     * @param buffer
-     * @return {Router}
-     */
-    setBuffer(buffer) {
-        if(buffer) {
-            this._buffer = buffer;
-        }
-
-        return this;
-    }
-
-    /**
-     * @return {string}
-     */
-    getBuffer(){
-        return this._buffer && typeof this._buffer === 'string'
-            ? JSON.parse(this._buffer) : {};
-    }
-
-    /**
      * Подготовка объектов запроса и ответа
      */
     _prepare(){
@@ -307,8 +286,64 @@ class Router {
                     this._response.end(err.toString());
                 });
         };
+    }
 
-        this._request.data = this.getBuffer();
+    /**
+     * Парсим тело запроса, получаем объект
+     * @param body
+     * @return {Router}
+     */
+    parseBody(body) {
+        let data = {};
+        let contentType = this._request.headers['content-type'];
+
+        if(contentType && contentType.match(/multipart\/form\-data/)) {
+            // получаем ключи ч-з регулярное выражение, получим массив типа name="key"
+            let keys = body.match(/(name\=\"([^\"]+)\")/g);
+            // получаем значения ч-з регулярное выражение, получаем значение с отступами по бокам
+            let values = body.match(/\r\n\r\n([^\r\n]+)\r\n/g);
+
+            if(keys && keys.length && values && values.length) {
+                // убираем ковычки у ключей, и разбиваем name=key по разделителю =
+                // возвращаем значения справа от разделителя - получаем имя ключа
+                keys = keys.map(key => key.replace(/[\'|\"]+/g, '').split('=')[1]);
+                // убираем отступы по бокам
+                values = values.map(value => value.trim());
+
+                keys.forEach((key, index) => {
+                    // декодируем спецсимволы внутри значения
+                    data[key] = decodeURIComponent(values[index]);
+                });
+
+                this._request.data = data;
+            } else {
+                this._request.data = data;
+            }
+        } else if (contentType === 'application/x-www-form-urlencoded') {
+            // разбиваем тело запроса по разделителю &
+            // получаем массив ['key=value', 'key=value']
+            let splited = body.split(/\&/g);
+
+            if(splited.length) {
+                splited.forEach(item => {
+                    // разбиваем элемент по разделителю =
+                    let [key, value] = item.split('=');
+                    // декодируем спецсимволы внутри значения
+                    data[key] = decodeURIComponent(value);
+                });
+            }
+
+            this._request.data = data;
+        } else if (contentType === 'application/json') {
+            if(typeof body === "string") {
+                // декодируем спецсимволы внутри значения
+                this._request.data = JSON.parse(decodeURIComponent(body));
+            } else {
+                this._request.data = {};
+            }
+        }
+
+        return this;
     }
 
     /**
@@ -319,28 +354,33 @@ class Router {
      * @return {Router|*}
      */
     direct(uri, method){
-        uri = uri.replace(/^\/+|\/+$/g, '');
-
-        uri = uri === '' ? '/' : uri;
-
-        // проверяем, есть ли у данного uri паттерн для динамической обработки запросов
-        let pattern = this.uriGetPattern(uri, method);
         // подготавливаем объекты запроса и ответа
         this._prepare();
+        // проверяем токен
+        if(this.checkToken()) {
+            uri = uri.replace(/^\/+|\/+$/g, '');
 
-        let callback = this._routes[method.toLowerCase()]._patterns[pattern];
+            uri = uri === '' ? '/' : uri;
 
-        if(pattern && callback !== undefined && typeof callback === "function") {
-            this._request.params = this.getParams(pattern, uri);
-            return callback(this._request, this._response, ...Object.values(this._request.params));
-        }
+            // проверяем, есть ли у данного uri паттерн для динамической обработки запросов
+            let pattern = this.uriGetPattern(uri, method);
 
-        callback = this._routes[method.toLowerCase()][uri];
+            let callback = this._routes[method.toLowerCase()]._patterns[pattern];
 
-        if(callback !== undefined && typeof callback === 'function') {
-            callback(this._request, this._response);
+            if(pattern && callback !== undefined && typeof callback === "function") {
+                this._request.params = this.getParams(pattern, uri);
+                return callback(this._request, this._response, ...Object.values(this._request.params));
+            }
+
+            callback = this._routes[method.toLowerCase()][uri];
+
+            if(callback !== undefined && typeof callback === 'function') {
+                callback(this._request, this._response);
+            } else {
+                return this._response.end(this._response.send405());
+            }
         } else {
-            return this._response.end(this._response.send405());
+            return this._response.end('Неверный токен');
         }
     }
 
@@ -562,6 +602,18 @@ class Router {
         } else {
             this._response.writeHead(200, {'Content-Type': 'text/plain'});
         }
+    }
+
+    /**
+     *
+     * @return {boolean}
+     */
+    checkToken() {
+        if(this._request.method.toLowerCase() !== 'get') {
+            return this._request.session.token().check(this._request.data.token);
+        }
+
+        return true;
     }
 
     /**

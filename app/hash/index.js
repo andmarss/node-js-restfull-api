@@ -14,6 +14,10 @@ class Hash {
         return crypto.randomBytes(32).toString('base64');
     }
 
+    static md5(value) {
+        return crypto.createHash('md5').update(`${value}`).digest("hex");
+    }
+
     static unique() {
         return Hash.create(Hash.uniqueId(), Hash.salt());
     }

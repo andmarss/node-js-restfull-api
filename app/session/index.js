@@ -2,9 +2,12 @@ const path = require('path');
 const fs = require('fs');
 const url = require('url');
 const Cookie = require('../cookie/index');
+const Token = require('../token');
 let cookieInstance;
 
 const SESSION_PATH = path.join(__dirname, '../../.sessions/');
+
+let instance = null;
 
 class Session extends Map {
     constructor(session){
@@ -52,7 +55,9 @@ class Session extends Map {
 
                             resolve(Session.start(request, response));
                         } else {
-                            resolve(new Session(data));
+                            instance = new Session(data);
+
+                            resolve(instance);
                         }
                     })
                 });
@@ -92,13 +97,13 @@ class Session extends Map {
                                         return;
                                     }
 
-                                    let session = new Session(fileData);
+                                    instance = new Session(fileData);
 
                                     cookieInstance
                                         .set('SESSID', sessionId, 'Session')
                                         .send();
 
-                                    resolve(session);
+                                    resolve(instance);
                                 });
                             });
                         })
@@ -141,13 +146,13 @@ class Session extends Map {
                                     return;
                                 }
 
-                                let session = new Session(fileData);
+                                instance = new Session(fileData);
 
                                 cookieInstance
                                     .set('SESSID', sessionId, 'Session')
                                     .send();
 
-                                resolve(session);
+                                resolve(instance);
                             });
                         });
                     })
@@ -248,13 +253,13 @@ class Session extends Map {
                                 return;
                             }
 
-                            let session = new Session(fileData);
+                            instance = new Session(fileData);
 
                             cookieInstance
                                 .set('SESSID', fileData.__id, 'Session')
                                 .send();
 
-                            resolve(session);
+                            resolve(instance);
                         })
                     })
                 })
@@ -262,8 +267,20 @@ class Session extends Map {
         });
     }
 
+    token() {
+        return Token;
+    }
+
     static isAssetRequest(uri) {
         return uri.search(/\.[jpg|png|css|js|ico]+$/g) > -1;
+    }
+
+    static getInstance() {
+        if(!instance) {
+            instance = new Session({});
+        }
+
+        return instance;
     }
 }
 

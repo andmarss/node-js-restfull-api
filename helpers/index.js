@@ -1,6 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 
+const Token = require('../app/token');
+
 let instance = null;
 
 class Helpers {
@@ -24,6 +26,22 @@ class Helpers {
                 resolve(data);
             });
         });
+    }
+
+    /**
+     * Генерирует csrf-токен
+     * @return {*}
+     */
+    csrf_token() {
+        return Token.generate();
+    }
+
+    /**
+     * Вовзаращает скрытое поле, которое можно добавить на форму запроса
+     * @return {string}
+     */
+    csrf_field() {
+        return `<input type="hidden" name="token" value="${this.csrf_token()}" />`;
     }
 
     static getInstance(){

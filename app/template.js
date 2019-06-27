@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const Auth = require('./auth');
 
+const { csrf_field, csrf_token } = require('../helpers');
+
 class Template {
     /**
      * @param filepath
@@ -24,6 +26,10 @@ class Template {
         const router = require('../router/index');
 
         data.route = (name, data) => router.convertRouteToUri(name, data);
+
+        data.csrf_field = csrf_field;
+
+        data.csrf_token = csrf_token;
 
         return new Promise((resolve, reject) => {
 
