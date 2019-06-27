@@ -1,0 +1,36 @@
+<nav class="navbar navbar-default navbar-static-top">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" data-toggle="collapse" data-target="#app-navbar-collapse" class="navbar-toggle collapsed">
+            <span class="sr-only">Toggle Navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <a href="javascript:void(0);" class="navbar-brand">
+            Задачник
+        </a>
+    </div>
+        <div id="app-navbar-collapse" class="collapse navbar-collapse">
+            <ul class="nav navbar-nav navbar-right">
+                <% if (!auth.check()) { %>
+
+                    <li>
+                        <a href="<%=route('login-index')%>">Авторизироваться</a>
+                    </li>
+                    <li>
+                        <a href="<%=route('register-index')%>">Зарегестрироваться</a>
+                    </li>
+                    <li>
+                        <a href="javascript:void(0);">Восстановить пароль</a>
+                    </li>
+
+                <% } else { %>
+                    <li>
+                        <a href="javascript:void(0);">test</a>
+                    </li>
+                <% } %>
+            </ul>
+        </div>
+    </div>
+</nav>

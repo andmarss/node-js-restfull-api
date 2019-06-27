@@ -81,6 +81,14 @@ class Cookie extends Map {
 
         return this;
     }
+
+    static getInstance(request, response) {
+        if(!instance) {
+            instance = new Cookie(request, response);
+        }
+
+        return instance;
+    }
 }
 
 module.exports = Cookie;

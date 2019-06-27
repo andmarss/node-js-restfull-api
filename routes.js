@@ -7,36 +7,16 @@ const router = require('./router/index');
  */
 const User = require('./models/user');
 
-router.get('/sample', (req, res) => {
-    res.end(res.json({'name': 'sample-handler'}));
-});
-
-router.post('/foo/bar', (req, res) => {
-    res.end('fooooo');
-});
-
-router.get('/ping', (req, res) => {
-    res.end(res.json({}));
-});
-
-router.post('/user/create', (req, res) => {
-    User.create(req.data)
-        .then(user => {
-            res.end(res.json(user.data()));
-        })
-        .catch(err => {
-            res.end(err.toString());
-        });
+router.get('/', (req, res) => {
+    res.view('index');
 });
 
 router.get('/user/find/{id}', 'UsersController@find');
 
 router.get('/users/all', 'UsersController@all');
 
-router.get('/public/{path}', (req, res) => {
-    res.loadAsset(req.params.path);
-}).where({path: '.*'});
+router.get('/register', 'AuthController@registerIndex').name('register-index');
 
-router.get('/favicon.ico', (req, res) => {
-    res.loadAsset('favicon.ico');
-});
+router.get('/login', 'AuthController@loginIndex').name('login-index');
+
+router.post('/register', 'AuthController@register').name('register');

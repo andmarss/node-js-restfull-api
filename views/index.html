@@ -1,20 +1,11 @@
 <% extend 'template/index' %>
 
 <% block 'body' %>
-    <% include 'includes/one' %>
-
-    <% users.forEach(user => { %>
-        <p><%=user.id%>. <%=user.name%></p>
-    <% }); %>
+    <div class="container">
+        <% include 'includes/one' %>
+    </div>
 <% endblock %>
 
 <% block 'scripts' %>
-    <script>
-        console.log('aaa');
-        console.log('bbb');
-        var string = "abc";
-        console.log(`${string}`);
-    </script>
-
     <script src="<%=asset('js/app.js')%>"></script>
 <% endblock %>

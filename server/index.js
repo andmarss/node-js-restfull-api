@@ -20,9 +20,17 @@ const https = require('https');
  */
 const url = require('url');
 /**
- * @type {Session}
+ * @type {Session} Session
  */
 const Session = require('../app/session/index');
+
+const Cookie = require('../app/cookie');
+
+const Auth = require('../app/auth');
+
+const { asset } = require('../helpers/index');
+
+let auth;
 
 const StringDecoder = require('string_decoder').StringDecoder;
 /**
@@ -64,8 +72,9 @@ class Server {
          * получаем путь
          * @var {string} path
          */
-        let path = parsed.pathname;
-        let uri = path.replace(/^\/+|\/+$/g, '');
+        let pathname = parsed.pathname;
+        let uri = pathname.replace(/^\/+|\/+$/g, '');
+        uri = uri === '' ? '/' : uri;
         /**
          * Получаем http метод
          * @var {string} method
@@ -78,31 +87,90 @@ class Server {
         // получаем данные, если есть
         let decoder = new StringDecoder('utf-8');
         let buffer = '';
-        // запускаем сессию
-        Session.start(req, res).then(session => {
-            if(!req.session) {
-                req.session = session;
-            }
 
-            req
-                .on('data', data => buffer += decoder.write(data))
-                .on('end', () => {
-                    buffer += decoder.end();
-                    // обрабатываем запрос
-                    router
-                        .setRequest(req)
-                        .setResponse(res)
-                        .setBuffer(buffer)
-                        .direct(uri, method);
-                });
-            // когда выполняется ответ на запрос - обновляем сессию
-            // подгружая все изменения
-            res.on('finish', () => {
-                req.session.update().then(session => {
+        if(Server._isRequestToAssets(uri)) {
+            Server._loadAssets(req, res);
+        } else {
+            // запускаем сессию
+            Session.start(req, res).then(session => {
+                if(session && !req.session) {
                     req.session = session;
-                })
-            });
-        });
+                }
+
+                if(!req.cookie) {
+                    req.cookie = Cookie.getInstance(req, res);
+                }
+
+                // инициализируем аутентификацию
+                if(!auth) {
+                    auth = Auth.getInstance(req.session, req.cookie);
+                }
+
+                req
+                    .on('data', data => buffer += decoder.write(data))
+                    .on('end', () => {
+                        buffer += decoder.end();
+                        // обрабатываем запрос
+                        router
+                            .setRequest(req)
+                            .setResponse(res)
+                            .setBuffer(buffer)
+                            .direct(uri, method);
+                    });
+                // когда выполняется ответ на запрос - обновляем сессию
+                // подгружая все изменения
+                res.on('finish', () => {
+                    req.session.update().then(session => {
+                        req.session = session;
+                    })
+                });
+            }).catch(err => res.end(err.toString()));
+        }
+    }
+
+    /**
+     * Запрос на статичные файлы? (css, js, картинки)
+     * @param uri
+     * @return {boolean}
+     * @private
+     */
+    static _isRequestToAssets(uri) {
+        /**
+         * @var {string} publicPath
+         */
+        let publicPath = uri.replace(/\/?public/, '');
+
+        return uri !== '/' && fs.existsSync(path.join(__dirname, `../public/${publicPath}`));
+    }
+
+    /**
+     * Загрузить статичные файлы
+     * @param request
+     * @param response
+     * @private
+     */
+    static _loadAssets(request, response) {
+        /**
+         * @type {string}
+         */
+        let pathname = url.parse(request.url, true).pathname;
+        /**
+         * @type {string}
+         */
+        let uri = pathname.replace(/^\/+|\/+$/g, '');
+        /**
+         * @type {string}
+         */
+        let publicPath = uri.replace(/\/?public/, '');
+
+        router
+            .setRequest(request)
+            .setResponse(response)
+            .prepareHeader(publicPath);
+
+        asset(publicPath).then(data => {
+            response.end(data);
+        }).catch(err => response.end(err.toString()));
     }
 
     /**

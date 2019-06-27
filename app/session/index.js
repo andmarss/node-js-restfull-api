@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const url = require('url');
 const Cookie = require('../cookie/index');
 let cookieInstance;
 
@@ -22,7 +23,7 @@ class Session extends Map {
      * @return {Promise<any>}
      */
     static start(request, response, options = {}) {
-        cookieInstance = new Cookie(request, response);
+        cookieInstance = Cookie.getInstance(request, response);
         let cookie = cookieInstance.parseCookie();
         let keys = Object.keys(cookie);
         // по умолчанию
@@ -162,7 +163,7 @@ class Session extends Map {
      */
     static delete(sessionId) {
         if(sessionId) {
-            return await new Promise((resolve) => {
+            return new Promise((resolve) => {
                 fs.unlink(`${SESSION_PATH}${sessionId}.json`, err => {
                     resolve(!err);
                 });
@@ -259,6 +260,10 @@ class Session extends Map {
                 })
             });
         });
+    }
+
+    static isAssetRequest(uri) {
+        return uri.search(/\.[jpg|png|css|js|ico]+$/g) > -1;
     }
 }
 

@@ -14,6 +14,15 @@ const env = {
             accountSid: '',
             token: '',
             from: ''
+        },
+        session: {
+            tokenName: 'token',
+            sessionName: 'user',
+            sessionInstance: 'user-instance'
+        },
+        remember: {
+            cookieName: 'user',
+            cookieExpire: 3600000 // час
         }
     },
 

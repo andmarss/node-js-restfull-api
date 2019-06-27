@@ -1,6 +1,7 @@
 const fs = require('fs');
 
 const path = require('path');
+const Auth = require('./auth');
 
 class Template {
     /**
@@ -13,8 +14,16 @@ class Template {
         filepath = Template._getPath(filepath);
 
         data.asset = path => {
-            return `public/${path}`
+            return `/public/${path}`
         };
+
+        data.auth = Auth.getInstance();
+        /**
+         * @var {Router} router
+         */
+        const router = require('../router/index');
+
+        data.route = (name, data) => router.convertRouteToUri(name, data);
 
         return new Promise((resolve, reject) => {
 

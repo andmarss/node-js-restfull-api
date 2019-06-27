@@ -3,7 +3,8 @@ const { asset } = require('../helpers/index');
 
 let instance = null;
 
-let Template = require('../app/template');
+const Template = require('../app/template');
+const Pluraliser = require('../app/pluralizer');
 
 /**
  * @class Router
@@ -41,6 +42,7 @@ class Router {
         this._buffer = '';
         this._where = {};
         this._route = '';
+        this._names = {};
     }
 
     /**
@@ -52,6 +54,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            route = route === '' ? '/' : route;
+
             this._route = route;
 
             if(Router.routeIsPattern(route)) {
@@ -61,6 +65,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            route = route === '' ? '/' : route;
 
             this._route = route;
 
@@ -91,6 +97,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            route = route === '' ? '/' : route;
+
             this._route = route;
 
             if(Router.routeIsPattern(route)) {
@@ -100,6 +108,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            route = route === '' ? '/' : route;
 
             this._route = route;
 
@@ -130,6 +140,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            route = route === '' ? '/' : route;
+
             this._route = route;
 
             if(Router.routeIsPattern(route)) {
@@ -139,6 +151,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            route = route === '' ? '/' : route;
 
             this._route = route;
 
@@ -169,6 +183,8 @@ class Router {
         if(route && callback && typeof route === 'string' && typeof callback === 'function') {
             route = route.replace(/^\/+|\/+$/g, '');
 
+            route = route === '' ? '/' : route;
+
             this._route = route;
 
             if(Router.routeIsPattern(route)) {
@@ -178,6 +194,8 @@ class Router {
             }
         } else if (route && callback && typeof route === 'string' && typeof callback === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+
+            route = route === '' ? '/' : route;
 
             this._route = route;
 
@@ -291,8 +309,6 @@ class Router {
         };
 
         this._request.data = this.getBuffer();
-
-        this._response.writeHead(200, {'Content-Type': 'text/plain; charset=UTF-8'});
     }
 
     /**
@@ -304,6 +320,9 @@ class Router {
      */
     direct(uri, method){
         uri = uri.replace(/^\/+|\/+$/g, '');
+
+        uri = uri === '' ? '/' : uri;
+
         // проверяем, есть ли у данного uri паттерн для динамической обработки запросов
         let pattern = this.uriGetPattern(uri, method);
         // подготавливаем объекты запроса и ответа
@@ -369,6 +388,7 @@ class Router {
     getParamsKeys(route){
         if(route && typeof route === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+            route = route === '' ? '/' : route;
 
             // разбиваем маршрут, например, /users/find/{id}/another/{user_id} так
             // что бы получить {id} и {user_id}
@@ -389,7 +409,9 @@ class Router {
     getParamsValues(route, uri) {
         if(route && typeof route === 'string' && uri && typeof uri === 'string') {
             route = route.replace(/^\/+|\/+$/g, '');
+            route = route === '' ? '/' : route;
             uri = uri.replace(/^\/+|\/+$/g, '');
+            uri = uri === '' ? '/' : uri;
             let where = this._where[route];
             let pattern;
 
@@ -466,6 +488,60 @@ class Router {
         }
 
         return this;
+    }
+
+    /**
+     * Регистрирует маршрут по имени
+     * @param name
+     * @return {Router}
+     */
+    name(name) {
+        if(Object.keys(this._names).includes(name)) {
+            throw new Error(`Имя маршрута "${name}" уже объявлено. Выберите другое имя.`);
+        }
+
+        this._names[name] = this._route;
+
+        return this;
+    }
+
+    /**
+     * Конвертирует алиас в url-адрес, к которому алиас привязан
+     * @param name
+     * @param data
+     */
+    convertRouteToUri(name, data = {}) {
+        if(!Object.keys(this._names).includes(name)) {
+            throw new Error(`Имя маршрута "${name}" не объявлено.`);
+        }
+
+        let uri = this._names[name];
+        let isPattern = Router.routeIsPattern(uri);
+
+        if(isPattern) {
+            uri = uri.replace(/\{([^\{|\}]+)\}/g, '%s');
+            let length = uri.match(/\{([^\{|\}]+)\}/g).length;
+            let valuesLength = Object.values(data).length;
+
+            if(valuesLength === 0) {
+                uri = this._names[name];
+                let plural = Pluraliser.pluralize(length, ['параметр', 'параметра', 'праметров']);
+
+                throw new Error(`Для маршрута "${uri}" необходимо передать ${length} ${plural}`);
+            } else if (length !== valuesLength) {
+                uri = this._names[name];
+                let plural = Pluraliser.pluralize(length, ['параметр', 'параметра', 'праметров']);
+                let valuesPlural = Pluraliser.pluralize(valuesLength, ['параметр', 'параметра', 'праметров']);
+
+                throw new Error(`Для маршрута "${uri}" ожидалось ${length} ${plural}, получено ${valuesLength} ${valuesPlural}`);
+            }
+
+            Object.values(data).forEach(value => uri = uri.replace(/\%s/, value));
+
+            return `/${uri}`;
+        } else {
+            return `/${uri}`;
+        }
     }
     /**
      * Подготовить заголовок к типу передаваемого контента

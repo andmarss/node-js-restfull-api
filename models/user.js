@@ -1,5 +1,6 @@
 const Model = require('./model');
 const fs = require('fs');
+const Hash = require('../app/hash/index');
 
 /**
  * @class User
@@ -113,6 +114,7 @@ class User extends Model {
                             if(!err && desc) {
                                 // данные, которые будут заносится в файл
                                 insertingData = JSON.stringify([{...data, id: 1}]);
+                                insertingData.password = Hash.make(insertingData.password);
                                 // пишем в файл данные
                                 fs.writeFile(desc, insertingData, err => {
                                     if (err) {
@@ -126,7 +128,7 @@ class User extends Model {
                                             return;
                                         }
 
-                                        res(JSON.parse(insertingData));
+                                        res(new User(JSON.parse(insertingData)));
                                     });
                                 })
                             } else {
@@ -148,6 +150,8 @@ class User extends Model {
                                 rej(new Error('Пользователь с данным email\'ом уже зарегестрирован. Измените email адрес на другой.'));
                                 return;
                             }
+
+                            instance.password = Hash.make(instance.password);
 
                             insertingData = JSON.stringify([...fileData, instance]);
 
@@ -289,6 +293,63 @@ class User extends Model {
                 });
             });
         });
+    }
+
+    static where(condition = {}){
+        if(!condition) throw new Error('Необходимо передать объект с условиями для поиска пользователя, или функцию, по которой будет найден пользователь.');
+
+        if(Object.keys(condition).length === 0 && typeof condition !== "function") throw new Error('Необходимо передать объект с условиями для поиска пользователя, или функцию, по которой будет найден пользователь.');
+
+        if(!User._name) throw new Error('Необходимо указать имя файла');
+
+        let name = User._name.trim().match(/\.json$/g) ? User._name : `${User._name}.json`;
+
+        return new Promise((res, rej) => {
+            fs.readFile(`${User._path}/${name}`, {encoding: 'utf-8', flag: 'a+'}, (err, data) => {
+                if(err) rej(err);
+
+                data = data ? JSON.parse(data) : '';
+
+                if(!data || !data.length) {
+                    rej('Список экземпляров пуст');
+                    return;
+                }
+
+                let isFunction = typeof condition === "function";
+                let isObject = typeof condition === "object" && !Array.isArray(condition);
+                let resolve;
+
+                if(isFunction) {
+                    resolve = data.find(condition);
+                } else if (isObject) {
+                    resolve = data.find(instance => {
+                        return Object.keys(condition).filter(key => {
+                            return instance[key] === condition[key];
+                        }).length > 0
+                    });
+                }
+
+                if(!resolve) {
+                    res(false);
+                    return;
+                }
+
+                res(new User(resolve));
+            });
+        });
+    }
+
+    /**
+     * Проверяет, валидный ли пароль
+     * @param password
+     * @return {boolean}
+     */
+    validPassword(password) {
+        if(password) {
+            return this.password === Hash.make(password);
+        }
+
+        return false;
     }
 }
 
