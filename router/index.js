@@ -380,6 +380,8 @@ class Router {
                 return this._response.end(this._response.send405());
             }
         } else {
+            this._response.writeHead(503, {'Content-Type': 'text/plain; charset=UTF-8'});
+
             return this._response.end('Неверный токен');
         }
     }
@@ -559,8 +561,8 @@ class Router {
         let isPattern = Router.routeIsPattern(uri);
 
         if(isPattern) {
-            uri = uri.replace(/\{([^\{|\}]+)\}/g, '%s');
             let length = uri.match(/\{([^\{|\}]+)\}/g).length;
+            uri = uri.replace(/\{([^\{|\}]+)\}/g, '%s');
             let valuesLength = Object.values(data).length;
 
             if(valuesLength === 0) {

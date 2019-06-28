@@ -19,7 +19,6 @@ const https = require('https');
  * @type {module:url}
  */
 const url = require('url');
-const { parse } = require('querystring');
 /**
  * @type {Session} Session
  */
@@ -88,7 +87,7 @@ class Server {
         // получаем данные, если есть
         let decoder = new StringDecoder('utf-8');
         let buffer = '';
-
+        // если запрос на загрузку статичных данных
         if(Server._isRequestToAssets(uri)) {
             Server._loadAssets(req, res);
         } else {
@@ -107,16 +106,10 @@ class Server {
                     auth = Auth.getInstance(req.session, req.cookie);
                 }
 
-                let body = [];
-
                 req
-                    .on('data', data => {
-                        buffer += decoder.write(data);
-                        body.push(data);
-                    })
+                    .on('data', data => buffer += decoder.write(data))
                     .on('end', () => {
                         buffer += decoder.end();
-                        body = Buffer.concat(body).toString('utf-8');
                         // обрабатываем запрос
                         router
                             .setRequest(req)

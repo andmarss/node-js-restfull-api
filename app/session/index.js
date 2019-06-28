@@ -31,7 +31,7 @@ class Session extends Map {
         let keys = Object.keys(cookie);
         // по умолчанию
         let expires = options.expires || 0;
-
+        // если в заголовках есть id сессии - работаем с ним
         if(keys.length > 0 && keys.includes('SESSID')) {
             let sessionId = cookie['SESSID'];
             // если старый файл сессии существует
@@ -53,7 +53,7 @@ class Session extends Map {
                         } else if (data.__expires !== 0 && data.__expires < Date.now()) { // если сессия устарела - удаляем её
                             Session.delete(sessionId);
 
-                            resolve(Session.start(request, response));
+                            Session.start(request, response).then(session => resolve(session));
                         } else {
                             instance = new Session(data);
 
@@ -61,7 +61,7 @@ class Session extends Map {
                         }
                     })
                 });
-            } else {
+            } else { // если файла нет - создаем новый
                 return new Promise((resolve, reject) => {
                     // генерируем идентификатор новой сессии
                     sessionId = Session.generateSessionId();
@@ -110,7 +110,7 @@ class Session extends Map {
                     });
                 });
             }
-        } else {
+        } else { // если заголовка нет - генерируем новую сесиию
             return new Promise((resolve, reject) => {
                 // генерируем идентификатор новой сессии
                 let sessionId = Session.generateSessionId();
@@ -269,10 +269,6 @@ class Session extends Map {
 
     token() {
         return Token;
-    }
-
-    static isAssetRequest(uri) {
-        return uri.search(/\.[jpg|png|css|js|ico]+$/g) > -1;
     }
 
     static getInstance() {

@@ -53,7 +53,7 @@ class Auth {
      */
     register(data) {
         return new Promise((resolve, reject) => {
-            this.attempt(data).then(user => {
+            User.where(user => user.email === data.email).then(user => {
                 if(user) {
                     reject('Пользователь с таким Email\'ом уже зарегестрирован');
                     return;
@@ -66,7 +66,7 @@ class Auth {
                         })
                     }
                 })
-            })
+            });
         });
     }
 
@@ -108,12 +108,12 @@ class Auth {
      * Очищает информацию аутентификации пользователя в сессии пользователя
      */
     logout() {
-        if(this.session.get(this.sessionName)) {
+        if(this.session.has(this.sessionName)) {
             this.session.delete(this.sessionName);
             this.session.delete(this.sessionInstance);
         }
 
-        if(this.cookie.get(this.cookieName)) {
+        if(this.cookie.has(this.cookieName)) {
             this.cookie.delete(this.cookieName);
         }
 
