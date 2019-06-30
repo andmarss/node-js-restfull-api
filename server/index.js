@@ -28,6 +28,8 @@ const Cookie = require('../app/cookie');
 
 const Auth = require('../app/auth');
 
+const Redirect = require('../app/redirect');
+
 const { asset } = require('../helpers/index');
 
 let auth;
@@ -104,6 +106,18 @@ class Server {
                 // инициализируем аутентификацию
                 if(!auth) {
                     auth = Auth.getInstance(req.session, req.cookie);
+                }
+
+                let redirect = Redirect.getInstance(req, res);
+
+                if (!res.redirect) {
+                    res.redirect = (path, dataObj = {}) => {
+                        if(path && path.length) {
+                            redirect.to(path, dataObj);
+                        } else {
+                            return redirect;
+                        }
+                    }
                 }
 
                 req
