@@ -17,7 +17,7 @@ router.get('/users/all', 'UsersController@all');
 
 router.get('/register', 'AuthController@registerIndex').name('register-index').middleware('guest');
 
-router.get('/login', 'AuthController@loginIndex').name('login-index').middleware(['test', 'test1', 'guest']);
+router.get('/login', 'AuthController@loginIndex').name('login-index').middleware('guest');
 
 router.post('/register', 'AuthController@register').name('register').middleware('guest');
 
