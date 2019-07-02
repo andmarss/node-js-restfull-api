@@ -44,6 +44,24 @@ class Helpers {
         return `<input type="hidden" name="token" value="${this.csrf_token()}" />`;
     }
 
+    /**
+     * Привязывает метод handle посредника к методу handle обертки
+     * @param middleware
+     * @return {bound}
+     */
+    rebindMiddleware(middleware){
+        let args = Array.prototype.slice.call(arguments, 1);
+        let layer = {
+            handle: null
+        };
+
+        if(middleware && middleware.handle && typeof middleware.handle === "function") {
+            layer.handle = middleware.handle.bind(middleware, ...args)
+        }
+
+        return layer;
+    }
+
     static getInstance(){
         if(!instance) {
             instance = new Helpers();

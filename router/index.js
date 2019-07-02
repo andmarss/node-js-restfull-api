@@ -1,5 +1,5 @@
 const path = require('path');
-const { asset } = require('../helpers/index');
+const { asset, rebindMiddleware } = require('../helpers/index');
 
 let instance = null;
 
@@ -43,6 +43,8 @@ class Router {
         this._where = {};
         this._route = '';
         this._names = {};
+        this._middlewares = {};
+        this._method = '';
     }
 
     /**
@@ -57,6 +59,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'get';
 
             if(Router.routeIsPattern(route)) {
                 this._routes.get._patterns[route] = callback;
@@ -69,6 +72,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'get';
 
             let [controller, action] = callback.split('@');
 
@@ -100,6 +104,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'post';
 
             if(Router.routeIsPattern(route)) {
                 this._routes.post._patterns[route] = callback;
@@ -112,6 +117,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'post';
 
             let [controller, action] = callback.split('@');
 
@@ -143,6 +149,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'put';
 
             if(Router.routeIsPattern(route)) {
                 this._routes.put._patterns[route] = callback;
@@ -155,6 +162,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'put';
 
             let [controller, action] = callback.split('@');
 
@@ -186,6 +194,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'delete';
 
             if(Router.routeIsPattern(route)) {
                 this._routes.delete._patterns[route] = callback;
@@ -198,6 +207,7 @@ class Router {
             route = route === '' ? '/' : route;
 
             this._route = route;
+            this._method = 'delete';
 
             let [controller, action] = callback.split('@');
 
@@ -356,8 +366,11 @@ class Router {
     direct(uri, method){
         // подготавливаем объекты запроса и ответа
         this._prepare();
+
+        let verifyCsrfMiddleware = require('../app/middleware/middlewares/verify');
+
         // проверяем токен
-        if(this.checkToken()) {
+        if(verifyCsrfMiddleware.handle(this._request, this._response)) {
             uri = uri.replace(/^\/+|\/+$/g, '');
 
             uri = uri === '' ? '/' : uri;
@@ -365,17 +378,28 @@ class Router {
             // проверяем, есть ли у данного uri паттерн для динамической обработки запросов
             let pattern = this.uriGetPattern(uri, method);
 
-            let callback = this._routes[method.toLowerCase()]._patterns[pattern];
+            let callback = this._routes[method.toLowerCase()]._patterns[pattern];;
 
             if(pattern && callback !== undefined && typeof callback === "function") {
-                this._request.params = this.getParams(pattern, uri);
-                return callback(this._request, this._response, ...Object.values(this._request.params));
+                // если у маршрута есть миддлвары - вызываем их
+                if(this.hasMiddlewares(pattern, method)) {
+                    return this.bindMiddlewares(uri, method, callback, pattern).handle();
+                } else {
+                    this._request.params = this.getParams(pattern, uri);
+                    return callback(this._request, this._response, ...Object.values(this._request.params));
+                }
             }
 
             callback = this._routes[method.toLowerCase()][uri];
 
             if(callback !== undefined && typeof callback === 'function') {
-                callback(this._request, this._response);
+                // если у маршрута есть миддлвары - вызываем их
+                if(this.hasMiddlewares(uri, method)) {
+                    return this.bindMiddlewares(uri, method, callback).handle();
+                } else {
+                    this._request.params = this.getParams(pattern, uri);
+                    return callback(this._request, this._response, ...Object.values(this._request.params));
+                }
             } else {
                 return this._response.end(this._response.send405());
             }
@@ -580,9 +604,9 @@ class Router {
 
             Object.values(data).forEach(value => uri = uri.replace(/\%s/, value));
 
-            return `/${uri}`;
+            return uri === '/' ? uri : `/${uri}`;
         } else {
-            return `/${uri}`;
+            return uri === '/' ? uri : `/${uri}`;
         }
     }
     /**
@@ -606,16 +630,193 @@ class Router {
         }
     }
 
-    /**
-     *
-     * @return {boolean}
-     */
-    checkToken() {
-        if(this._request.method.toLowerCase() !== 'get') {
-            return this._request.session.token().check(this._request.data.token);
+    middleware(name) {
+        /**
+         * @var {Kernel} kernel
+         */
+        let kernel = require('../app/middleware/kernel');
+        /**
+         * @var {Array} middlewares
+         */
+        let middlewares = kernel.getMiddlewares();
+
+        if(Array.isArray(name)) {
+            name.forEach(name => {
+                if(!Object.keys(middlewares).includes(name)) {
+                    throw new Error(`Посредник ${name} не объявлен.`);
+                }
+            })
+        } else if(!Object.keys(middlewares).includes(name)) {
+            throw new Error(`Посредник ${name} не объявлен.`);
         }
 
-        return true;
+        if(!this._middlewares[this._route]) {
+            this._middlewares[this._route] = {};
+        }
+
+        if(!this._middlewares[this._route][this._method]) {
+            this._middlewares[this._route][this._method] = [];
+        }
+
+        if(Array.isArray(name)) {
+            name.forEach(name => {
+                this._middlewares[this._route][this._method].push(middlewares[name]);
+            });
+        } else {
+            this._middlewares[this._route][this._method].push(middlewares[name]);
+        }
+
+        return this;
+    }
+
+    /**
+     * Связывает цепочки middleware'ов между собой так
+     * что бы каждый middleware имел доступ к middleware, идущим следом
+     * в виде функции next внтри метода handle
+     * @param uri
+     * @param method
+     * @param callback
+     * @param pattern
+     * @return {never|T|*}
+     */
+    bindMiddlewares(uri, method, callback, pattern = ''){
+        let middlewares, layer;
+        /**
+         * @var {number} index
+         */
+        let index = 0;
+
+        // если передан паттерн - получаем его мидлвары
+        if(pattern) {
+            /**
+             * @var {Array} middlewares
+             */
+            middlewares = this._middlewares[pattern][method];
+        } else { // если ссылка - получаем ее миддлвары
+            /**
+             * @var {Array} middlewares
+             */
+            middlewares = this._middlewares[uri][method];
+        }
+        /**
+         * Получаем первый мидлвар
+         * @type {never|T|*}
+         */
+        let middleware = middlewares[index];
+        index = ++index;
+        // проверяем, есть ли у маршрута следующий посредник
+        if(this.hasNext(pattern ? pattern : uri, method, index)) {
+            // если да - получаем следующего посредника
+            // следующий посредник будет пытаться найти посредник, идущий следом
+            // если найдет - привяжет его к своему handle методу
+            // если нет - привяжет функцию callback, которая вызовется в самом конце
+            let next = this.getNext({
+                uri,
+                method,
+                index,
+                callback,
+                pattern
+            });
+            // привязываем следующий посредник к первому
+            layer = rebindMiddleware(middleware, this._request, this._response, next.handle);
+        } else { // если следующиего посредника нет - привязываем callback
+            let next;
+            // если передан паттерн - получаем параметры из него
+            if(pattern) {
+                this._request.params = this.getParams(pattern, uri);
+                next = callback.bind(null, this._request, this._response, ...Object.values(this._request.params));
+            } else { // если строка - просто привязываем объект запроса и ответа к callback'у
+                next = callback.bind(null, this._request, this._response);
+            }
+            // привязываем callback к посреднику
+            layer = rebindMiddleware(middleware, this._request, this._response, next);
+        }
+
+        return layer;
+    }
+
+    /**
+     * Проверяет, есть ли у текущего маршрута мидлвары
+     * @param uri
+     * @param method
+     * @return {boolean}
+     */
+    hasMiddlewares(uri, method) {
+        let middlewares = this._middlewares[uri][method];
+
+        return !!(middlewares && middlewares.length);
+    }
+
+    /**
+     * Проверяет, есть ли у маршрута следующий посредник по индексу
+     * @param uri
+     * @param method
+     * @param index
+     * @return {boolean}
+     */
+    hasNext(uri, method, index){
+        let middlewares = this._middlewares[uri][method];
+
+        if(index !== undefined) {
+            return !!middlewares.slice(index, index+1)[0];
+        }
+
+        return false;
+    }
+
+    /**
+     * Рекурсивная функция
+     * Возвращает по индексу следующий посредник
+     * Если у след. мидлавара есть посредник, идущий следом - привязывает его handle метод к handle методу след. посредника
+     * И т.д.
+     * Если у след. посредника отсутствует посредник, идущий следом - привязывает callback к его handle методу
+     * @param uri
+     * @param method
+     * @param index
+     * @param callback
+     * @param pattern
+     * @return {never|T|*}
+     */
+    getNext({uri, method, index, callback, pattern = ''}) {
+        let middlewares, layer;
+        // если передан паттерн - получаем его мидлвары
+        if(pattern) {
+            /**
+             * @var {Array} $middlewares
+             */
+            middlewares = this._middlewares[pattern][method];
+        } else {
+            /**
+             * @var {Array} $middlewares
+             */
+            middlewares = this._middlewares[uri][method];
+        }
+
+        if(index !== undefined) {
+            let nextMiddleware = middlewares.slice(index, index+1)[0];
+
+            index = ++index;
+            // если у посредника есть следующий посредник - привязываем его handle метод к handle методу посредника
+            if(nextMiddleware && this.hasNext(pattern ? pattern : uri, method, index)) {
+                let next = this.getNext({uri, method, index, callback, pattern});
+
+                layer = rebindMiddleware(nextMiddleware, this._request, this._response, next.handle);
+            // Если след. посредника нет - привязываем callback к его handle методу
+            } else if (nextMiddleware && !this.hasNext(pattern ? pattern : uri, method, index)) {
+                let next;
+                // если передан паттерн - получаем параметры из него
+                if(pattern) {
+                    this._request.params = this.getParams(pattern, uri);
+                    next = callback.bind(null, this._request, this._response, ...Object.values(this._request.params));
+                } else { // если строка - просто привязываем объект запроса и ответа к callback'у
+                    next = callback.bind(null, this._request, this._response);
+                }
+                // привязываем callback к посреднику
+                layer = rebindMiddleware(nextMiddleware, this._request, this._response, next);
+            }
+
+            return layer;
+        }
     }
 
     /**

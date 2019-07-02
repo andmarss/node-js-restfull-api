@@ -8,7 +8,7 @@ class AuthController {
     }
 
     registerIndex(request, response) {
-
+        response.view('register/index');
     }
 
     login(request, response) {
