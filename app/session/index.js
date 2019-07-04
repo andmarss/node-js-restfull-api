@@ -47,19 +47,19 @@ class Session extends Map {
                         let data = fileData ? JSON.parse(fileData) : {};
                         // если файл пустой - удаляем его
                         if(data.__id === undefined || data.__expires === undefined) {
-                            Session.delete(sessionId);
-
-                            Session.start(request, response).then(session => resolve(session));
+                            Session.delete(sessionId).then(() => {
+                                Session.start(request, response).then(session => resolve(session));
+                            });
                         } else if (data.__expires !== 0 && data.__expires < Date.now()) { // если сессия устарела - удаляем её
-                            Session.delete(sessionId);
-
-                            Session.start(request, response).then(session => resolve(session));
+                            Session.delete(sessionId).then(() => {
+                                Session.start(request, response).then(session => resolve(session));
+                            });
                         } else {
                             instance = new Session(data);
 
                             resolve(instance);
                         }
-                    })
+                    });
                 });
             } else { // если файла нет - создаем новый
                 return new Promise((resolve, reject) => {
