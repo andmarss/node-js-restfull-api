@@ -49,7 +49,7 @@ class Session extends Map {
                         if(data.__id === undefined || data.__expires === undefined) {
                             Session.delete(sessionId);
 
-                            resolve(Session.start(request, response));
+                            Session.start(request, response).then(session => resolve(session));
                         } else if (data.__expires !== 0 && data.__expires < Date.now()) { // если сессия устарела - удаляем её
                             Session.delete(sessionId);
 
