@@ -199,12 +199,63 @@ class Session extends Map {
         return false;
     }
 
+    /**
+     * Возвращает элемент по имени
+     * Или undefined - если его нет
+     * @param name
+     * @return {V}
+     */
     get(name){
         return super.get(name);
     }
 
+    /**
+     * Добавляет элемент в сессию
+     * @param name
+     * @param value
+     */
     set(name, value) {
         super.set(name, value);
+    }
+
+    /**
+     * Проверяет, имеется ли элемент с переданным ключом в сессии
+     * @param name
+     * @return {boolean}
+     */
+    has(name) {
+        return super.has(name);
+    }
+
+    /**
+     *
+     * @param name
+     * @return {boolean}
+     */
+    delete(name) {
+        return super.delete(name);
+    }
+
+    /**
+     * Если было передано два значения
+     * Сохраняет в сессию по имени name значение value
+     * Если передан одно name - возвращает значение из сессии, после чего удаляет его
+     * @param name
+     * @param value
+     * @return {boolean|*}
+     */
+    flash(name, value) {
+        if(this.has(name)) {
+            let value = this.get(name);
+
+            this.delete(name);
+
+            return value;
+        } else {
+            this.set(name, value);
+        }
+
+        return true;
     }
 
     /**
