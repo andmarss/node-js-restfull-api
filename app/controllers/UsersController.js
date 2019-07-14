@@ -14,6 +14,16 @@ class UsersController {
             })
             .catch(err => response.end(err.toString()));
     }
+
+    edit(request, response, id) {
+
+    }
+
+    profile(request, response, id) {
+        User.find(id).then(user => {
+            response.view('profile/index', {user});
+        })
+    }
 }
 
 module.exports = UsersController;

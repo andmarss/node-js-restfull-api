@@ -1,0 +1,19 @@
+<% extend 'template/index' %>
+
+<% block 'body' %>
+    <div class="container">
+        <% if(auth.id() === user.id || user.admin) { %>
+
+            <% if(user.name !== undefined) { %>
+                <h1>Привет, <%=user.name%></h1>
+            <% } else { %>
+                <h1>Привет, пользователь!</h1>
+            <% } %>
+
+            <% include 'profile/edit' %>
+
+        <% } else { %>
+            <h3>У вас нет прав для просмотра данной страницы.</h3>
+        <% } %>
+    </div>
+<% endblock %>

@@ -1,0 +1,30 @@
+<div class="panel panel-default">
+    <div class="panel-heading">Изменить данные пользователя</div>
+
+    <div class="panel-body">
+        <form enctype="multipart/form-data" action="<%=route('user.edit', {'id': user.id})%>" method="post" id="store-form">
+            <%=csrf_field()%>
+
+            <div class="form-group">
+                <label for="name">Имя</label>
+                <input value="<%=(user.name ? user.name : '')%>" name="name" id="name" class="form-control title" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email-адрес</label>
+                <input value="<%=(user.email ? user.email : '')%>" id="email" name="email" class="form-control title" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input value="" name="password" type="password" id="password" class="form-control title">
+            </div>
+
+            <div class="form-group">
+                <div class="text-right">
+                    <button class="btn btn-success">Изменить данные</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

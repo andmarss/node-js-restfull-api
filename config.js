@@ -5,8 +5,8 @@
  */
 const env = {
     staging: {
-        port: 3000,
-        https: 3001,
+        port: 5000,
+        https: 5001,
         envName: 'staging',
         hash: 'secretHashStaging',
         checks: 5,
@@ -27,8 +27,8 @@ const env = {
     },
 
     production: {
-        port: 5000,
-        https: 5001,
+        port: 6000,
+        https: 6001,
         envName: 'production',
         hash: 'secretHashProduction',
         checks: 5,

@@ -15,7 +15,7 @@ class CsrfMiddleware {
     handle(request, response) {
         if(request.method.toLowerCase() !== 'get'
             &&
-            !this.isVerify(url.parse(request.url, true))
+            !this.isVerify(url.parse(request.url, true).pathname)
             &&
             !request.session.token().check(request.data.token)) {
             throw new Error('Ошибка запроса');

@@ -80,15 +80,11 @@ class User extends Model {
 
         if(User._fillable.length === 0) throw new Error('Необходимо указать допустимые для заполнения поля');
 
-        if(Object.keys(data).length > User._fillable.length) throw new Error(`Переданный объект содержит слишком много полей для заполнения.
-        Допустимыми для заполнения полями являются: "${User._fillable.join(', ')}"`);
-
-        if(Object.keys(data).length < User._fillable.length) throw new Error(`Переданный объект содержит слишком мало полей для заполнения.
-        Обязательные поля для заполнения: "${User._fillable.join(', ')}"`);
-
         if(Object.keys(data).length > 0) {
 
             Object.keys(data).forEach(key => {
+                if(key === 'token') return;
+
                 if(!User._fillable.includes(key)) {
                     throw new Error(`Ключ ${key} не является допустимым для записи`);
                 }

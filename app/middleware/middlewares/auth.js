@@ -6,7 +6,7 @@ class AuthMiddleware extends Middleware {
         let auth = Auth.getInstance();
 
         if(auth.guest()) {
-            response.redirect().route('login-index');
+            return response.redirect().route('login-index');
         } else {
             next();
         }

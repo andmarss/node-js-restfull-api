@@ -717,19 +717,32 @@ class Router {
                 callback,
                 pattern
             });
-            // привязываем следующий посредник к первому
-            layer = rebindMiddleware(middleware, this._request, this._response, next.handle);
+
+            if(pattern) {
+                if(!this._request.params) {
+                    this._request.params = this.getParams(pattern, uri);
+                }
+                // привязываем следующий посредник к первому, пробрасываем параметры
+                layer = rebindMiddleware(middleware, this._request, this._response, next.handle, ...Object.values(this._request.params));
+            } else {
+                // привязываем следующий посредник к первому
+                layer = rebindMiddleware(middleware, this._request, this._response, next.handle)
+            }
         } else { // если следующиего посредника нет - привязываем callback
             let next;
             // если передан паттерн - получаем параметры из него
             if(pattern) {
-                this._request.params = this.getParams(pattern, uri);
+                if(!this._request.params) {
+                    this._request.params = this.getParams(pattern, uri);
+                }
                 next = callback.bind(null, this._request, this._response, ...Object.values(this._request.params));
+                // привязываем callback к посреднику
+                layer = rebindMiddleware(middleware, this._request, this._response, next, ...Object.values(this._request.params));
             } else { // если строка - просто привязываем объект запроса и ответа к callback'у
                 next = callback.bind(null, this._request, this._response);
+                // привязываем callback к посреднику
+                layer = rebindMiddleware(middleware, this._request, this._response, next);
             }
-            // привязываем callback к посреднику
-            layer = rebindMiddleware(middleware, this._request, this._response, next);
         }
 
         return layer;
@@ -800,19 +813,32 @@ class Router {
             if(nextMiddleware && this.hasNext(pattern ? pattern : uri, method, index)) {
                 let next = this.getNext({uri, method, index, callback, pattern});
 
-                layer = rebindMiddleware(nextMiddleware, this._request, this._response, next.handle);
+                if(pattern) {
+                    if(!this._request.params) {
+                        this._request.params = this.getParams(pattern, uri);
+                    }
+                    // привязываем следующий посредник к первому, пробрасываем параметры
+                    layer = rebindMiddleware(nextMiddleware, this._request, this._response, next.handle, ...Object.values(this._request.params));
+                } else {
+                    // привязываем следующий посредник к первому
+                    layer = rebindMiddleware(nextMiddleware, this._request, this._response, next.handle)
+                }
             // Если след. посредника нет - привязываем callback к его handle методу
             } else if (nextMiddleware && !this.hasNext(pattern ? pattern : uri, method, index)) {
                 let next;
                 // если передан паттерн - получаем параметры из него
                 if(pattern) {
-                    this._request.params = this.getParams(pattern, uri);
+                    if(!this._request.params) {
+                        this._request.params = this.getParams(pattern, uri);
+                    }
                     next = callback.bind(null, this._request, this._response, ...Object.values(this._request.params));
+                    // привязываем callback к посреднику, пробрасываем параметры
+                    layer = rebindMiddleware(nextMiddleware, this._request, this._response, next, ...Object.values(this._request.params));
                 } else { // если строка - просто привязываем объект запроса и ответа к callback'у
                     next = callback.bind(null, this._request, this._response);
+
+                    layer = rebindMiddleware(nextMiddleware, this._request, this._response, next);
                 }
-                // привязываем callback к посреднику
-                layer = rebindMiddleware(nextMiddleware, this._request, this._response, next);
             }
 
             return layer;

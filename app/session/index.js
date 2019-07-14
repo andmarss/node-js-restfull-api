@@ -216,6 +216,8 @@ class Session extends Map {
      */
     set(name, value) {
         super.set(name, value);
+
+        return this;
     }
 
     /**

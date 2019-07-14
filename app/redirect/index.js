@@ -1,5 +1,3 @@
-let instance = null;
-
 class Redirect {
     /**
      * @param request
@@ -18,12 +16,17 @@ class Redirect {
      */
     to(path, data = {}){
         const session = require('../session').getInstance();
+        let url;
 
         if(Object.keys(data).length) {
             session.set('redirect', data);
         }
 
-        let url = `/${path.replace(/^\/|\/$/g, '')}`;
+        if(path.search(/ht{2}ps?/)) {
+            url = path;
+        } else {
+            url = `/${path.replace(/^\/|\/$/g, '')}`;
+        }
 
         this.response.writeHead(302, {'Location': url});
 
@@ -36,8 +39,9 @@ class Redirect {
      * @return {*}
      */
     back(data = {}) {
-        let url = this.request.headers['referer'] !== undefined
-            ? this.request.headers['referer'] : '/';
+        let url = this.request.session.get('referer') !== undefined
+            ? this.request.session.get('referer')
+            : '/';
 
         return this.to(url, data);
     }
@@ -49,24 +53,14 @@ class Redirect {
      * @return {*}
      */
     route(name, data = {}) {
+        /**
+         * @var {Router} router
+         */
         let router = require('../../router');
 
-        let url = router.convertRouteToUri(name);
+        let url = router.convertRouteToUri(name, data);
 
-        return this.to(url, data);
-    }
-
-    /**
-     * @param request
-     * @param response
-     * @return {*}
-     */
-    static getInstance(request, response) {
-        if(!instance) {
-            instance = new Redirect(request, response);
-        }
-
-        return instance;
+        return this.to(url);
     }
 }
 

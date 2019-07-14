@@ -14,21 +14,29 @@ class AuthController {
     login(request, response) {
         let auth = Auth.getInstance();
 
-        User
-            .where(user => user.email === request.data.email)
-            .then(user => {
-                response.end(response.json(user));
-            });
-
-        // response.json(auth.login(request.data));
+        auth.login(request.data).then(user => {
+            return response.redirect().route('profile', {id: user.id});
+        });
     }
 
     register(request, response) {
         let auth = Auth.getInstance();
 
         auth.register(request.data).then(user => {
-            response.end(response.json(user.data()));
+            return response.redirect().route('profile', {id: user.id});
         });
+    }
+
+    logout(request, response) {
+        let auth = Auth.getInstance();
+
+        if(auth.logout()) {
+            return response
+                .redirect()
+                .route('login-index');
+        } else {
+            return response.redirect().back();
+        }
     }
 }
 

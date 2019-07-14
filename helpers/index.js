@@ -52,7 +52,7 @@ class Helpers {
     rebindMiddleware(middleware){
         let args = Array.prototype.slice.call(arguments, 1);
         let layer = {
-            handle: null
+            handle(){}
         };
 
         if(middleware && middleware.handle && typeof middleware.handle === "function") {

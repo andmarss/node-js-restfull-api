@@ -108,17 +108,13 @@ class Server {
                     auth = Auth.getInstance(req.session, req.cookie);
                 }
 
-                let redirect = Redirect.getInstance(req, res);
-
-                if (!res.redirect) {
-                    res.redirect = (path, dataObj = {}) => {
-                        if(path && path.length) {
-                            redirect.to(path, dataObj);
-                        } else {
-                            return redirect;
-                        }
+                res.redirect = (path, dataObj = {}) => {
+                    if(path && path.length) {
+                        return new Redirect(req, res).to(path, dataObj);
+                    } else {
+                        return new Redirect(req, res);
                     }
-                }
+                };
 
                 req
                     .on('data', data => buffer += decoder.write(data))
@@ -134,6 +130,10 @@ class Server {
                 // когда выполняется ответ на запрос - обновляем сессию
                 // подгружая все изменения
                 res.on('finish', () => {
+                    if(req.session.get('referer') !== uri) {
+                        req.session.set('referer', uri);
+                    }
+
                     req.session.update().then(session => {
                         req.session = session;
                     })
